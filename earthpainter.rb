@@ -8,7 +8,7 @@ module EarthPainter
     include Magick
     
     attr_reader :height, :width, :scale, :bg, :name, :gc, :canvas, :cyc
-    attr_accessor :rr
+    attr_accessor :rr, :max, :min
     
     # height => INT picture height, width is derived from this (2x heigth)
     # bg => STRING Backgroundcolor
@@ -25,22 +25,54 @@ module EarthPainter
       @name = name
       @gc = Draw.new
       @canvas = Image.new(@width, @height) { self.background_color = bg}
-
+      
+      @max = 0
+      @min = 1/0.0
+      @points = Hash.new
+      
       @cyc = cycles
   		@rr = 0
     end
     
+    # map a datapoint on a pixel on the canvas
+    def map(lat, lon, count)
+      x = (@width / 2 + lon * @scale).to_i.to_s
+      y = (@height / 2 - lat * @scale).to_i.to_s
+      begin
+        @points[x][y] += count
+      rescue Exception => e
+        if @points[x] == nil
+          @points[x] = Hash.new
+        end
+        @points[x][y] = count
+      end
+      # keep track of the highest count
+      if @points[x][y] > @max
+        @max = @points[x][y]
+      end
+      if @points[x][y] < @min
+        @min = @points[x][y]
+      end      
+    end
+    
     # draw a single pixel on the map
-    def point(lat, lon, color, opacity = 1.0)
+    def point(x, y, color, opacity = 1.0)
       update
-      x = (@width / 2 + lon * @scale).to_i
-      y = (@height / 2 - lat * @scale).to_i
       @gc.fill(color)
       @gc.fill_opacity(opacity)
       @gc.point(x,y)
     end
-
-  	# write out the image to disk finnally
+    
+    # draw the full image
+    def draw
+      @points.each_key{ |x|
+        @points[x].each_key{ |y|
+          point(x.to_i,y.to_i,"white",1.0)
+        }
+      }
+    end
+    
+  	# write out the image to disk finally
   	def write
   		@gc.draw(@canvas)
   		@canvas.write(@name)
