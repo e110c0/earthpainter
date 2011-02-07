@@ -24,7 +24,7 @@ module EarthPainter
       @bg = bg
       @name = name
       @gc = Draw.new
-      @canvas = Image.new(@width, @height) { self.background_color = @bg}
+      @canvas = Image.new(@width, @height) { self.background_color = bg}
 
       @cyc = cycles
   		@rr = 0
@@ -35,10 +35,16 @@ module EarthPainter
       update
       x = (@width / 2 + lon * @scale).to_i
       y = (@height / 2 - lat * @scale).to_i
-      @gc.fill_opacity(opacity)
       @gc.fill(color)
+      @gc.fill_opacity(opacity)
       @gc.point(x,y)
     end
+
+  	# write out the image to disk finnally
+  	def write
+  		@gc.draw(@canvas)
+  		@canvas.write(@name)
+  	end
 
     # Local private methods
   	# refresh the image, kill the current drawing context and create a new one
