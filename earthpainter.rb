@@ -55,6 +55,22 @@ module EarthPainter
       end      
     end
     
+    # calculate the colorsteps depending on the min/max values and the 
+    # number of colors
+    # types so far: log, linear
+    def calc_colorstepping(colorcount, type)
+      if type == "log"
+        return Math.log((@max-@min+1)**(1.0/colorcount))
+      end
+      if type == "linear"
+        return (@max-@min+1)/colorcount
+      end
+    end
+    
+    def get_color(base,value)
+      (Math.log(value+1-@min)/base).floor.to_i
+    end
+    
     # draw a single pixel on the map
     def point(x, y, color, opacity = 1.0)
       update
@@ -64,14 +80,29 @@ module EarthPainter
     end
     
     # draw the full image
-    def draw
-      @points.each_key{ |x|
-        @points[x].each_key{ |y|
-          point(x.to_i,y.to_i,"white",1.0)
+    def draw(cgrad = nil)
+      base = calc_colorstepping(15, "log")
+      if cgrad == nil
+        @points.each_key{ |x|
+          @points[x].each_key{ |y|
+            cno = get_color(base, @points[x][y])
+            key =  "%02x" % (12*cno+75)
+            color = "#0000"  + key
+            puts "x: " + x + " y: " + y + " color: " + color + " count: " + @points[x][y].to_s
+            point(x.to_i,y.to_i,color,1.0)
+          }
         }
-      }
+      else
+        @points.each_key{ |x|
+          @points[x].each_key{ |y|
+            cno = get_color(base, @points[x][y])
+            color = cgrad[cno]
+            point(x.to_i,y.to_i,color,1.0)
+          }
+        }
+      end
     end
-    
+  
   	# write out the image to disk finally
   	def write
   		@gc.draw(@canvas)
@@ -97,5 +128,10 @@ module EarthPainter
   end
   
   class ColorGradient
+    def initialize
+      @colors = Hash.new
+    end
+    def get_colormatch
+    end
   end
 end
