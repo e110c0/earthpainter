@@ -54,53 +54,21 @@ module EarthPainter
         @min = @points[x][y]
       end      
     end
-    
-    # calculate the colorsteps depending on the min/max values and the 
-    # number of colors
-    # types so far: log, linear
-    def calc_colorstepping(colorcount, type)
-      if type == "log"
-        return Math.log((@max-@min+1)**(1.0/colorcount))
-      end
-      if type == "linear"
-        return (@max-@min+1)/colorcount
-      end
-    end
-    
-    def get_color(base,value)
-      (Math.log(value+1-@min)/base).floor.to_i
-    end
-    
+
     # draw a single pixel on the map
-    def point(x, y, color, opacity = 1.0)
+    def point(x, y, color)
       update
       @gc.fill(color)
-      @gc.fill_opacity(opacity)
       @gc.point(x,y)
     end
     
     # draw the full image
-    def draw(cgrad = nil)
-      base = calc_colorstepping(15, "log")
-      if cgrad == nil
-        @points.each_key{ |x|
-          @points[x].each_key{ |y|
-            cno = get_color(base, @points[x][y])
-            key =  "%02x" % (12*cno+75)
-            color = "#0000"  + key
-            puts "x: " + x + " y: " + y + " color: " + color + " count: " + @points[x][y].to_s
-            point(x.to_i,y.to_i,color,1.0)
-          }
+    def draw(cgrad)
+      @points.each_key{ |x|
+        @points[x].each_key{ |y|
+          point(x.to_i,y.to_i,cgrad.get_color(@points[x][y]))
         }
-      else
-        @points.each_key{ |x|
-          @points[x].each_key{ |y|
-            cno = get_color(base, @points[x][y])
-            color = cgrad[cno]
-            point(x.to_i,y.to_i,color,1.0)
-          }
-        }
-      end
+      }
     end
   
   	# write out the image to disk finally
@@ -128,10 +96,63 @@ module EarthPainter
   end
   
   class ColorGradient
-    def initialize
+    include Magick
+    
+    attr_reader :colorcount, :type, :min, :max    
+    attr_accessor :colors
+    
+    def initialize(min,
+                  max,
+                  colorcount = 15,
+                  type = "log")
+      @min = min
+      @max = max
+      @colorcount = colorcount
+      @type = type
       @colors = Hash.new
+      
+      @base = 0
+      @step = 0
+      calc_colorstepping
     end
-    def get_colormatch
+
+    # calculate the colorsteps depending on the min/max values and the 
+    # number of colors
+    # types so far: log, linear
+    def calc_colorstepping
+      if type == "log"
+        @base = Math.log((@max-@min+2)**(1.0/@colorcount))
+      elsif type == "linear"
+        @step = (@max-@min+1)/@colorcount
+      end
+    end
+    
+    def set_color(no,color)
+      @colors[no]=color
+    end
+    
+    # calculate the colorlist based on the first and last color
+    def calc_colorlist(first, last)
+      f = first.gsub!(/#/,'').to_i(16)
+      l = last.gsub!(/#/,'').to_i(16)
+      step = ((l - f) / (@colorcount)).to_i
+      c = 1
+      while c <= @colorcount do
+        @colors[c] = "#%06x" % (f + c * step)
+        c += 1
+      end
+      puts @colors
+    end
+
+    def calc_colors()
+    end
+    
+    def get_color(value)
+      if type == "log"
+        no = (1 + Math.log(value+1-@min)/@base).floor.to_i
+        puts no
+        colors[no]
+      end
     end
   end
 end
