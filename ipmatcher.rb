@@ -81,8 +81,8 @@ module Ipmatcher
   end
 end
 
-m = Ipmatcher::MaxMindMatcher.new("maxmind.db",
-                                  "data/GeoLite_20110101/GeoLiteCity-Blocks.csv",
-                                  "data/GeoLite_20110101/GeoLiteCity-Location.csv")
+m = Ipmatcher::MaxMindMatcher.new("maxmind.db")#,
+                                  #"data/GeoLite_20110101/GeoLiteCity-Blocks.csv",
+                                  #"data/GeoLite_20110101/GeoLiteCity-Location.csv")
 m.update()
 
