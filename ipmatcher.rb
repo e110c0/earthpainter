@@ -17,9 +17,15 @@ module Ipmatcher
         @db.query("drop table if exists blocks")
         rows = @db.query(
             "create table blocks (
-              start int,
-              stop int,
-              location int
+              id int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+              start int(10) UNSIGNED NOT NULL,
+              stop int(10) UNSIGNED NOT NULL,
+              location int(10) UNSIGNED NOT NULL,
+              index_geo INT(10) UNSIGNED NOT NULL,
+              PRIMARY KEY (`id`),
+              INDEX idx_start (start),
+              INDEX idx_stop (stop),
+              INDEX idx_geo (index_geo)
             );"
           )
         File.open(@blocks).each{ |line|
@@ -31,17 +37,20 @@ module Ipmatcher
           start = data[0]
           stop = data[1]
           loc = data[2]
+          index = (stop.to_i / 65536 * 65536).to_s
           # put into db
-          @db.query("insert into blocks values (" + start + "," + stop + "," + loc + ")")
+          @db.query("insert into blocks (start, stop, location, index_geo) values (" +
+                     start +  "," + stop + "," + loc + "," + index + ")")
           c += 1
-          if (c%1000) == 0
+          if (c%10000) == 0
             puts "inserted " + c.to_s + " blocks."
           end
         }
+        puts "Finished. inserted " + c.to_s + " blocks."
+        #@db.query("update blocks set index_geo = (stop - mod(stop, 65536));")
       elsif
         puts "No blocks file provided, not updating!"
       end
-      puts "Finished. inserted " + c.to_s + " blocks."
       c = 0
       if @locations != nil
         # delete & prepare table
@@ -76,14 +85,16 @@ module Ipmatcher
 
     def get_coordinates(ip)
       if ip.class == String
-        ip = IPAddr.new(ip).to_i.to_s
+        ip = IPAddr.new(ip).to_i
       elsif ip.class == Fixnum
-        ip = ip.to_s
+        # do nothing
       else
         puts "unknown IP type!"
         return nil
       end
-      return @db.query("SELECT location from blocks where (start <= " + ip.to_s + ") AND (stop >= " + ip.to_s + ") LIMIT 1")
+      index = ip - (ip%65536)
+      return @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
+                      " AND " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
       
     end
     
@@ -91,8 +102,8 @@ module Ipmatcher
   end
 end
 
-m = Ipmatcher::MaxMindMatcher.new()#{}"localhost","ipmatcher","1pmatcher","maxmind",
-                                  #{}"data/GeoLite_20110101/GeoLiteCity-Blocks.csv",
+m = Ipmatcher::MaxMindMatcher.new("localhost","ipmatcher","1pmatcher","maxmind",
+                                  "data/GeoLite_20110101/GeoLiteCity-Blocks.csv")
                                   #{}"data/GeoLite_20110101/GeoLiteCity-Location.csv")
 m.update()
 before = Time.new
