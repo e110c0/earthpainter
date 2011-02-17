@@ -1,39 +1,38 @@
 require 'rubygems'
-require 'sqlite3'
+require 'mysql'
 require 'ipaddr'
 
 module Ipmatcher
   class MaxMindMatcher
-    include SQLite3
     
-    def initialize(db, blocks = nil, locations = nil)
+    def initialize(host = "localhost", user = "ipmatcher", pass = "1pmatcher", db = "maxmind", blocks = nil, locations = nil)
       @blocks = blocks
       @locations = locations
-      @db = Database.new(db)
+      @db = Mysql.real_connect(host, user, pass, db)
     end
     
     def update()
       c = 0
       if @blocks != nil
-        @db.execute("drop table if exists blocks")
-        rows = @db.execute <<-SQL
-            create table blocks (
+        @db.query("drop table if exists blocks")
+        rows = @db.query(
+            "create table blocks (
               start int,
               stop int,
               location int
-            );
-          SQL
+            );"
+          )
         File.open(@blocks).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          start = data[0].to_i
-          stop = data[1].to_i
-          loc = data[2].to_i
+          start = data[0]
+          stop = data[1]
+          loc = data[2]
           # put into db
-          @db.execute("insert into blocks values (?,?,?)", start, stop, loc)
+          @db.query("insert into blocks values (" + start + "," + stop + "," + loc + ")")
           c += 1
           if (c%1000) == 0
             puts "inserted " + c.to_s + " blocks."
@@ -46,24 +45,24 @@ module Ipmatcher
       c = 0
       if @locations != nil
         # delete & prepare table
-         @db.execute("drop table if exists locations")
-        rows = @db.execute <<-SQL
-            create table locations (
+         @db.query("drop table if exists locations")
+        rows = @db.query(
+            "create table locations (
               location int,
               lat real,
               lon real
-            );
-          SQL
+            );"
+          )
         File.open(@locations).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          location = data[0].to_i
-          lat = data[5].to_f
-          lon = data[6].to_f
-          @db.execute("insert into locations values (?,?,?)", location, lat, lon)
+          location = data[0]
+          lat = data[5]
+          lon = data[6]
+          @db.query("insert into locations values (" + location + "," + lat + "," + lon + ")")
           c += 1
           if (c%1000) == 0
             puts "inserted " + c.to_s + " locations."
@@ -76,15 +75,15 @@ module Ipmatcher
     end
 
     def get_coordinates(ip)
-      if ip.class == String:
-        ip = IPAddr.new(ip).to_i
-      elsif ip.class == Fixnum:
-        # do nothing
+      if ip.class == String
+        ip = IPAddr.new(ip).to_i.to_s
+      elsif ip.class == Fixnum
+        ip = ip.to_s
       else
         puts "unknown IP type!"
         return nil
       end
-      return @db.execute("SELECT location from blocks where (start <= ?) AND (stop >= ?) LIMIT 1", ip, ip)
+      return @db.query("SELECT location from blocks where (start <= " + ip.to_s + ") AND (stop >= " + ip.to_s + ") LIMIT 1")
       
     end
     
@@ -92,9 +91,9 @@ module Ipmatcher
   end
 end
 
-m = Ipmatcher::MaxMindMatcher.new("maxmind.db")#,
-                                  #"data/GeoLite_20110101/GeoLiteCity-Blocks.csv",
-                                  #"data/GeoLite_20110101/GeoLiteCity-Location.csv")
+m = Ipmatcher::MaxMindMatcher.new()#{}"localhost","ipmatcher","1pmatcher","maxmind",
+                                  #{}"data/GeoLite_20110101/GeoLiteCity-Blocks.csv",
+                                  #{}"data/GeoLite_20110101/GeoLiteCity-Location.csv")
 m.update()
 before = Time.new
 (20...30).each{ |a|
