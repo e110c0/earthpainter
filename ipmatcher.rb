@@ -8,15 +8,13 @@ require 'ipaddr'
 module Ipmatcher
   class MaxMindMatcher
     
-    def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind", blocks = nil, locations = nil)
-      @blocks = blocks
-      @locations = locations
+    def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
     end
     
-    def update()
+    def update(blocks = nil, locations = nil)
       c = 0
-      if @blocks != nil
+      if blocks != nil
         @db.query("drop table if exists blocks")
         rows = @db.query(
             "create table blocks (
@@ -31,7 +29,7 @@ module Ipmatcher
               INDEX idx_geo (index_geo)
             );"
           )
-        File.open(@blocks).each{ |line|
+        File.open(blocks).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
@@ -61,7 +59,7 @@ module Ipmatcher
         puts "No blocks file provided, not updating!"
       end
       c = 0
-      if @locations != nil
+      if locations != nil
         # delete & prepare table
          @db.query("drop table if exists locations")
         rows = @db.query(
@@ -71,7 +69,7 @@ module Ipmatcher
               lon real
             );"
           )
-        File.open(@locations).each{ |line|
+        File.open(locations).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
@@ -86,10 +84,10 @@ module Ipmatcher
             puts "inserted " + c.to_s + " locations."
           end
         }
+        puts "Finished. inserted " + c.to_s + " locations."
       elsif
         puts "No location file provided, not updating"
       end
-      puts "Finished. inserted " + c.to_s + " locations."
     end
 
     def get_coordinates(ip)
