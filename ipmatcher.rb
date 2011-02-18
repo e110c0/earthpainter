@@ -16,8 +16,6 @@ module Ipmatcher
     
     def update()
       c = 0
-      big = 0
-      ips = 0
       if @blocks != nil
         @db.query("drop table if exists blocks")
         rows = @db.query(
@@ -45,17 +43,15 @@ module Ipmatcher
           index_start = (start.to_i / 65536 * 65536)
           index_stop = (stop.to_i / 65536 * 65536)
           # put into db
-          #(0..( (index_stop-index_start)/65536 )).each{ |i|
-          #  index = (index_start + i * 65536).to_s
-          #  @db.query("insert into blocks (start, stop, location, index_geo) values (" +
-          #           start +  "," + stop + "," + loc + "," + index + ")")
-          #}
+          (0..( (index_stop-index_start)/65536 )).each{ |i|
+            index = (index_start + i * 65536).to_s
+            @db.query("insert into blocks (start, stop, location, index_geo) values (" +
+                     start +  "," + stop + "," + loc + "," + index + ")")
+          }
           c += 1
           if (c%10000) == 0
             puts "inserted " + c.to_s + " blocks."
           end
-          big = big + (index_stop - index_start) 
-          ips = ips + stop.to_i - start.to_i + 1
         }
         puts "Finished. inserted " + c.to_s + " blocks."
         puts "found " + big.to_s + " masked IPs."
@@ -119,7 +115,6 @@ module Ipmatcher
         return r
       end
     end
-    
-    
+        
   end
 end
