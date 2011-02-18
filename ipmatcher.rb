@@ -93,30 +93,33 @@ module Ipmatcher
         return nil
       end
       index = ip - (ip%65536)
-      return @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
+      res = @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
                       " AND " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
-      
+      if res.nil? then
+        return nil
+      else
+        r = res.fetch_row
+        return r
+      end
     end
     
     
   end
 end
 
-m = Ipmatcher::MaxMindMatcher.new("localhost","ipmatcher","1pmatcher","maxmind",
-                                  "data/GeoLite_20110101/GeoLiteCity-Blocks.csv")
+m = Ipmatcher::MaxMindMatcher.new("localhost","ipmatcher","1pmatcher","maxmind")
+                                  #{}"data/GeoLite_20110101/GeoLiteCity-Blocks.csv")
                                   #{}"data/GeoLite_20110101/GeoLiteCity-Location.csv")
 m.update()
 before = Time.new
-(20...30).each{ |a|
-  (30...40).each { |b|
+(0...256).each{ |a|
+  (0...256).each { |b|
     ip = a.to_s + "." + b.to_s + ".34.56"
     location = m.get_coordinates(ip)
-    begin
+    if not location.nil? then
       puts ip + ": " + location.to_s
-    rescue Exception => e
-      puts ip + ": none"
     end
   }
 }
 after = Time.new
-puts "100 request in %f seconds"  % (after-before)
+puts "10000 request in %f seconds"  % (after-before)
