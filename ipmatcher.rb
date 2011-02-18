@@ -1,3 +1,6 @@
+# Copyright 2011 Dirk Haage. All rights reserved.
+# This code is released under the BSD license, for details see the README file
+
 require 'rubygems'
 require 'mysql'
 require 'ipaddr'
@@ -5,7 +8,7 @@ require 'ipaddr'
 module Ipmatcher
   class MaxMindMatcher
     
-    def initialize(host = "localhost", user = "ipmatcher", pass = "1pmatcher", db = "maxmind", blocks = nil, locations = nil)
+    def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind", blocks = nil, locations = nil)
       @blocks = blocks
       @locations = locations
       @db = Mysql.real_connect(host, user, pass, db)
@@ -13,6 +16,8 @@ module Ipmatcher
     
     def update()
       c = 0
+      big = 0
+      ips = 0
       if @blocks != nil
         @db.query("drop table if exists blocks")
         rows = @db.query(
@@ -37,16 +42,24 @@ module Ipmatcher
           start = data[0]
           stop = data[1]
           loc = data[2]
-          index = (stop.to_i / 65536 * 65536).to_s
+          index_start = (start.to_i / 65536 * 65536)
+          index_stop = (stop.to_i / 65536 * 65536)
           # put into db
-          @db.query("insert into blocks (start, stop, location, index_geo) values (" +
-                     start +  "," + stop + "," + loc + "," + index + ")")
+          #(0..( (index_stop-index_start)/65536 )).each{ |i|
+          #  index = (index_start + i * 65536).to_s
+          #  @db.query("insert into blocks (start, stop, location, index_geo) values (" +
+          #           start +  "," + stop + "," + loc + "," + index + ")")
+          #}
           c += 1
           if (c%10000) == 0
             puts "inserted " + c.to_s + " blocks."
           end
+          big = big + (index_stop - index_start) 
+          ips = ips + stop.to_i - start.to_i + 1
         }
         puts "Finished. inserted " + c.to_s + " blocks."
+        puts "found " + big.to_s + " masked IPs."
+        puts ips.to_s + " IPs overall."
         #@db.query("update blocks set index_geo = (stop - mod(stop, 65536));")
       elsif
         puts "No blocks file provided, not updating!"
@@ -92,9 +105,13 @@ module Ipmatcher
         puts "unknown IP type!"
         return nil
       end
+      # this is the maxmind idea of a speed up. not sure this works
+      # some of the ip blocks are larger than 65k
+      # the fix for this is in updating the database and duplicating the rows for each /16
       index = ip - (ip%65536)
       res = @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
                       " AND " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
+      #res = @db.query("SELECT location from blocks where " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
       if res.nil? then
         return nil
       else
@@ -106,20 +123,3 @@ module Ipmatcher
     
   end
 end
-
-m = Ipmatcher::MaxMindMatcher.new("localhost","ipmatcher","1pmatcher","maxmind")
-                                  #{}"data/GeoLite_20110101/GeoLiteCity-Blocks.csv")
-                                  #{}"data/GeoLite_20110101/GeoLiteCity-Location.csv")
-m.update()
-before = Time.new
-(0...256).each{ |a|
-  (0...256).each { |b|
-    ip = a.to_s + "." + b.to_s + ".34.56"
-    location = m.get_coordinates(ip)
-    if not location.nil? then
-      puts ip + ": " + location.to_s
-    end
-  }
-}
-after = Time.new
-puts "10000 request in %f seconds"  % (after-before)
