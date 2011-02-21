@@ -52,8 +52,6 @@ module Ipmatcher
           end
         }
         puts "Finished. inserted " + c.to_s + " blocks."
-        puts "found " + big.to_s + " masked IPs."
-        puts ips.to_s + " IPs overall."
         #@db.query("update blocks set index_geo = (stop - mod(stop, 65536));")
       elsif
         puts "No blocks file provided, not updating!"
@@ -66,7 +64,9 @@ module Ipmatcher
             "create table locations (
               location int,
               lat real,
-              lon real
+              lon real,
+              PRIMARY KEY (location),
+              INDEX idx_loc (location)
             );"
           )
         File.open(locations).each{ |line|
@@ -80,7 +80,7 @@ module Ipmatcher
           lon = data[6]
           @db.query("insert into locations values (" + location + "," + lat + "," + lon + ")")
           c += 1
-          if (c%1000) == 0
+          if (c%10000) == 0
             puts "inserted " + c.to_s + " locations."
           end
         }
@@ -90,11 +90,12 @@ module Ipmatcher
       end
     end
 
+    # return the geo coordinates for an IP in an array [lat, lon] or nil if no location is known
     def get_coordinates(ip)
       if ip.class == String
         ip = IPAddr.new(ip).to_i
       elsif ip.class == Fixnum
-        # do nothing
+        # do nothingich 
       else
         puts "unknown IP type!"
         return nil
@@ -106,11 +107,12 @@ module Ipmatcher
       res = @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
                       " AND " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
       #res = @db.query("SELECT location from blocks where " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
-      if res.nil? then
+      begin
+        r = res.fetch_row[0]
+        l = @db.query("SELECT lat,lon from locations where location = #{r} LIMIT 1;").fetch_row
+        return l     
+      rescue Exception => e
         return nil
-      else
-        r = res.fetch_row
-        return r
       end
     end
         
