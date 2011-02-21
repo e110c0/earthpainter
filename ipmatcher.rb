@@ -104,13 +104,11 @@ module Ipmatcher
       # some of the ip blocks are larger than 65k
       # the fix for this is in updating the database and duplicating the rows for each /16
       index = ip - (ip%65536)
-      res = @db.query("SELECT location from blocks where index_geo = " + index.to_s + 
-                      " AND " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
-      #res = @db.query("SELECT location from blocks where " + ip.to_s + " BETWEEN start AND stop LIMIT 1")
+      res = @db.query("SELECT locations.lat,locations.lon from blocks,locations 
+                      WHERE index_geo = #{index} AND #{ip} BETWEEN blocks.start AND blocks.stop 
+                      AND blocks.location = locations.location LIMIT 1;")
       begin
-        r = res.fetch_row[0]
-        l = @db.query("SELECT lat,lon from locations where location = #{r} LIMIT 1;").fetch_row
-        return l     
+        return res.fetch_row
       rescue Exception => e
         return nil
       end
