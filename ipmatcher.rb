@@ -4,12 +4,72 @@
 require 'rubygems'
 require 'mysql'
 require 'ipaddr'
+require 'net/http'
 
 module Ipmatcher
   class MaxMindMatcher
     
     def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
+    end
+    
+    # download updates and update db
+    def get_updates()
+      # check for timestamp
+      last = @db.query("SELECT data from meta where info='updatetime';").fetch_row[0].to_i
+      puts "Last update was #{last}."
+      date = (Time.now.strftime("%Y%m") + "01").to_i
+      if date > last
+        # download
+        host = "geolite.maxmind.com"
+        file = "/download/geoip/database/GeoLiteCity_CSV/GeoLiteCity_#{date}.zip"
+        lfile = "/tmp/GeoLiteCity_#{date}.zip"
+        if not File.exist?(lfile)
+          puts "Trying to download #{host}#{file}..."
+          con = Net::HTTP.start(host)
+          resp = con.get(file)
+          open(lfile,"wb"){ |file|
+            file.write(resp.body)
+          }
+          puts "done."
+        else
+          puts "File already there, skipping download."          
+        end
+        # unpack
+        begin
+          puts "Unpacking..."
+          system("/usr/bin/unzip #{lfile} -d /tmp")
+          puts "done."
+        rescue Exception => e
+          puts "Unpacking failed, sorry."
+        end
+        blocks = "/tmp/GeoLiteCity_#{date}/GeoLiteCity-Blocks.csv"
+        locations = "/tmp/GeoLiteCity_#{date}/GeoLiteCity-Location.csv"
+
+        # correct files for parsing
+        # call update
+        update(blocks, locations)
+
+        set_updatetime(date)
+        # todo: cleanup
+        # delete /tmp/GeoLite dir
+        File.delete(blocks)
+        File.delete(locations)
+        Dir.delete("/tmp/GeoLiteCity_#{date}")
+      else
+        puts "Database up to date!"
+      end
+    end
+    
+    def set_updatetime(date)
+      puts date
+      begin
+        @db.query("UPDATE meta SET data=#{date} WHERE info='updatetime';")
+      rescue Exception => e
+        puts e
+        @db.query("create table meta (info varchar(255), data int(10) UNSIGNED NOT NULL);")
+        @db.query("INSERT into meta (info,data) values ('updatetime', #{date});")
+      end
     end
     
     def update(blocks = nil, locations = nil)
@@ -35,20 +95,25 @@ module Ipmatcher
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          start = data[0]
-          stop = data[1]
-          loc = data[2]
-          index_start = (start.to_i / 65536 * 65536)
-          index_stop = (stop.to_i / 65536 * 65536)
-          # put into db
-          (0..( (index_stop-index_start)/65536 )).each{ |i|
-            index = (index_start + i * 65536).to_s
-            @db.query("insert into blocks (start, stop, location, index_geo) values (" +
-                     start +  "," + stop + "," + loc + "," + index + ")")
-          }
-          c += 1
-          if (c%10000) == 0
-            puts "inserted " + c.to_s + " blocks."
+          if data.length == 3
+            begin
+              start = data[0]
+              stop = data[1]
+              loc = data[2]
+              index_start = (start.to_i / 65536 * 65536)
+              index_stop = (stop.to_i / 65536 * 65536)
+              # put into db
+              (0..( (index_stop-index_start)/65536 )).each{ |i|
+                index = (index_start + i * 65536).to_s
+                @db.query("insert into blocks (start, stop, location, index_geo) values (" +
+                          start +  "," + stop + "," + loc + "," + index + ")")
+              }
+              c += 1
+              if (c%10000) == 0
+                puts "inserted " + c.to_s + " blocks."
+              end              
+            rescue Exception => e
+            end
           end
         }
         puts "Finished. inserted " + c.to_s + " blocks."
@@ -59,7 +124,7 @@ module Ipmatcher
       c = 0
       if locations != nil
         # delete & prepare table
-         @db.query("drop table if exists locations")
+        @db.query("drop table if exists locations")
         rows = @db.query(
             "create table locations (
               location int,
@@ -69,19 +134,24 @@ module Ipmatcher
               INDEX idx_loc (location)
             );"
           )
-        File.open(locations).each{ |line|
+        File.open(locations, "r:iso-8859-1").each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          location = data[0]
-          lat = data[5]
-          lon = data[6]
-          @db.query("insert into locations values (" + location + "," + lat + "," + lon + ")")
-          c += 1
-          if (c%10000) == 0
-            puts "inserted " + c.to_s + " locations."
+          if data.length >=7
+            begin
+              location = data[0]
+              lat = data[5]
+              lon = data[6]
+              @db.query("insert into locations values (" + location + "," + lat + "," + lon + ")")
+              c += 1
+              if (c%10000) == 0
+                puts "inserted " + c.to_s + " locations."
+              end              
+            rescue Exception => e
+            end
           end
         }
         puts "Finished. inserted " + c.to_s + " locations."
@@ -113,6 +183,39 @@ module Ipmatcher
         return nil
       end
     end
-        
-  end
-end
+    
+    ### convenient functions to prepare the database for painting
+    # get a specific location by its id or all if id == nil
+    def get_location(id = nil)
+      if id == nil then
+        @db.query("SELECT lat,lon FROM locations")
+      else
+        @db.query("SELECT lat,lon FROM locations WHERE location = #{id};")
+      end
+    end
+    
+    # get ip count for a specific location of for all if id == nil
+    def get_ips_per_location(id = nil)
+      if id == nil then
+        @db.query("SELECT blocks.location,locations.lat,locations.lon,SUM(DISTINCT(stop)-start+1)
+                   FROM locations,blocks WHERE blocks.location = locations.location
+                   GROUP BY blocks.location;")
+      else
+        @db.query("SELECT locations.lat,locations.lon,SUM(DISTINCT(stop)-start+1) 
+                   FROM locations,blocks WHERE blocks.location=#{id} 
+                   AND blocks.location = locations.location;")
+      end
+    end
+    
+    
+    
+  end ### End class
+end ### End package
+
+
+
+
+
+
+
+
