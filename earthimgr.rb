@@ -1,3 +1,6 @@
+# Copyright 2011 Dirk Haage. All rights reserved.
+# This code is released under the BSD license, for details see the README file
+
 require "rubygems"
 # Usage and options
 require "getoptlong"
@@ -121,6 +124,7 @@ dbport = "3306"
 db = "maxmind"
 dbuser = "ipmatcher"
 dbpass = ""
+updatedb = false
 
 # Parse options
 opts.each do |opt, arg|
@@ -161,8 +165,16 @@ opts.each do |opt, arg|
   when "--user"
     dbuser = arg
   when "--pass"
-    dbuser = arg
+    dbpass = arg
+  when "--updatedb"
+    updatedb = true
   end
+end
+
+# update database if requested
+if updatedb
+  m = Ipmatcher::MaxMindMatcher.new(dbhost,dbuser,dbpass,db)
+  m.get_updates()
 end
 
 # Create image

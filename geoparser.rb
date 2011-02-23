@@ -1,3 +1,6 @@
+# Copyright 2011 Dirk Haage. All rights reserved.
+# This code is released under the BSD license, for details see the README file
+#
 # = Description
 # Basis to convert any data into coordinates:value form
 #
@@ -7,7 +10,6 @@
 # data_to_string HASH => STRING
 # Where HASH contains at least
 # {:lat => FLOAT, :lon => FLOAT, :val => FLOAT}
-
 
 module  GeoParser
   
