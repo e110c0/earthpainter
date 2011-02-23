@@ -31,7 +31,8 @@ Usage:
     Specify the data representation of the input file:
       maxmind: maxmind location file
       hip: hostip city file
-      ip: space separated "IP(v4) val"
+      ip: space separated "IP(v4) [val]", missing values are set to 1
+      reverseip: space separated "val IP(v4)"
       generic: space separated "lat lon val" (default)
     
 -H, --height:
@@ -87,6 +88,10 @@ def select_parser(type)
     GeoParser::GeoParser.new
   when "ip"
     p = IPParser.new
+    p.matcher = $matcher
+    return p
+  when "reverseip"
+    p = ReverseIPParser.new
     p.matcher = $matcher
     return p
   end
