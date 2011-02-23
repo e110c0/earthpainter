@@ -51,7 +51,6 @@ module Ipmatcher
         update(blocks, locations)
 
         set_updatetime(date)
-        # todo: cleanup
         # delete /tmp/GeoLite dir
         File.delete(blocks)
         File.delete(locations)
