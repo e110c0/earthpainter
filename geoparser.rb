@@ -45,6 +45,32 @@ module  GeoParser
     end
     
   end
+
+  # Parser for the generic geo data files
+  class GeoParser < Base
+    
+    def string_to_data(string)
+      data = string.chomp.split(' ')
+      if data.length == 2
+        to_data_without_value(data)
+      else
+        to_data_with_value(data)
+      end
+    end
+    
+    def to_data_with_value(data)
+      {:lat => data[0].to_f, :lon => data[1].to_f, :val => data[2].to_f}
+    end
+    def to_data_without_value(data)
+      {:lat => data[0].to_f, :lon => data[1].to_f, :val => 1}
+    end
+    
+    def data_to_string(data)
+      "#{data[:lat]} #{data[:lon]} #{data[:val]}".chomp
+    end
+    
+  end
+
   
   # Parser for the HostIP data files
   class HIPCityParser < Base

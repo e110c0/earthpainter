@@ -30,6 +30,7 @@ Usage:
     Specify the data representation of the input file:
       maxmind: maxmind location file
       hip: hostip city file
+      ip: space separated "IP(v4) val"
       generic: space separated "lat lon val" (default)
     
 -H, --height:
@@ -82,7 +83,9 @@ def select_parser(type)
   when "hip"
     GeoParser::HIPCityParser.new
   when "generic"
-    GeoParser::GenericIPParser.new
+    GeoParser::GeoParser.new
+  when "ip"
+    GeoParser::IPParser.new
   end
 end
 
