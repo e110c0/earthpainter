@@ -8,6 +8,7 @@ require "getoptlong"
 require "geoparser"
 require "ipmatcher"
 require "earthpainter"
+require "ipparser"
 
 # Usage output
 def usage
@@ -85,7 +86,9 @@ def select_parser(type)
   when "generic"
     GeoParser::GeoParser.new
   when "ip"
-    GeoParser::IPParser.new
+    p = IPParser.new
+    p.matcher = $matcher
+    return p
   end
 end
 
@@ -174,10 +177,19 @@ opts.each do |opt, arg|
   end
 end
 
-# update database if requested
-if updatedb
-  m = Ipmatcher::MaxMindMatcher.new(dbhost,dbuser,dbpass,db)
-  m.get_updates()
+# try to connect to the db
+begin
+  $matcher = Ipmatcher::MaxMindMatcher.new(dbhost,dbuser,dbpass,db)
+  # update database if requested
+  if updatedb
+    $matcher.get_updates()
+  end
+rescue Exception => e
+  if itype == "ip"
+    puts "db access failed, but required. exiting."
+  else
+    puts "db access failed, but not required. continueing."
+  end
 end
 
 # Create image
@@ -187,23 +199,24 @@ parser = select_parser(itype)
 parser.file = input
 puts "start analyzing #{parser.file}"
 c = 0
+errors = 0
 before = Time.new
 parser.each do |d|
   c += 1
-  if c % 50000 == 0
+  if c % 10000 == 0
     puts "parsed #{c} entries."
   end
 	begin
 	  image.map(d[:lat],d[:lon],d[:val])
-  rescue RuntimeError => e
-    puts e
+  rescue NoMethodError => e
+    errors += 1
 	  next
   end
 end
 after = Time.new
 puts "Finished. #{c} entries in #{(after-before)} seconds (#{(c/(after-before)).to_i}/sec)"
 puts "min value: #{image.min} - max value: #{image.max}"
-
+puts "#{errors} occured (non-parsable lines or no coordinates)"
 # render image
 puts "start rendering #{image.name}"
 if $maxval < 1
