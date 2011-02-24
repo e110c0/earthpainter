@@ -54,7 +54,16 @@ Usage:
 
 -l, --locations:
     paint known locations below the actual data
-    
+
+-L, --legend:
+    paint a legend for the colorscale with a specific height (default: 160)
+
+-d, --description:
+    paint a description above the legend (default: "IP count")
+
+-t, --title:
+    paint a title above the legend
+
 --host:
     host with the maxmind database (default: localhost)
 
@@ -95,6 +104,22 @@ def select_parser(type)
     p.matcher = $matcher
     return p
   end
+end
+
+# paint the locations in the light shadow
+def paint_locations(image)
+  puts "painting locations"
+  c = 0
+  before = Time.new
+  $matcher.get_location.each do |l|
+    image.coordinate(l[0].to_f,l[1].to_f,"#111")
+    c += 1
+    if c % 50000 == 0
+      puts "Painted #{c} locations."
+    end
+  end
+  after = Time.new
+  puts "Painted #{c} locations in #{(after-before)} seconds (#{(c/(after-before)).to_i}/sec)"
 end
 
 # Specify options
@@ -190,8 +215,9 @@ begin
     $matcher.get_updates()
   end
 rescue Exception => e
-  if itype == "ip"
+  if itype == "ip" or locations 
     puts "db access failed, but required. exiting."
+    Process.exit
   else
     puts "db access failed, but not required. continueing."
   end
@@ -199,6 +225,9 @@ end
 
 # Create image
 image = EarthPainter::EarthImage.new(height, "black", output)
+if locations
+  paint_locations(image)
+end
 # parse file and create picture
 parser = select_parser(itype)
 parser.file = input

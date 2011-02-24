@@ -58,6 +58,15 @@ module EarthPainter
       end      
     end
 
+    # draw a single coordinate on the map
+    def coordinate(lat, lon, color)
+      update
+      x = (@width / 2 + lon * @scale).to_i
+      y = (@height / 2 - lat * @scale).to_i
+      @gc.fill(color)
+      @gc.point(x,y)
+    end
+
     # draw a single pixel on the map
     def point(x, y, color)
       update
