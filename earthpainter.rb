@@ -82,7 +82,18 @@ module EarthPainter
         }
       }
     end
-  
+    
+    # draw a title a a specific location
+    # default is lower left
+    def title(title, x=@width/30,y = @height*5/8)
+      @gc.stroke('transparent')
+      @gc.fill('#eee')
+      @gc.font_style(Magick::NormalStyle)
+      @gc.font_weight(Magick::BoldWeight)
+      @gc.pointsize(x/2)
+      @gc.text(x, y, title)
+    end
+    
   	# write out the image to disk finally
   	def write
   		@gc.draw(@canvas)

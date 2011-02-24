@@ -61,7 +61,7 @@ Usage:
 -d, --description:
     paint a description above the legend (default: "IP count")
 
--t, --title:
+-T, --title:
     paint a title above the legend
 
 --host:
@@ -133,6 +133,7 @@ opts = GetoptLong.new(
   [ "--maxvalue", "-m", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--type", "-t", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--locations", "-l", GetoptLong::OPTIONAL_ARGUMENT ],
+  [ "--title", "-T", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--host", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--port", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--dbname", GetoptLong::OPTIONAL_ARGUMENT ],
@@ -154,6 +155,8 @@ height = 900
 input = ""
 itype = "generic"
 output = ""
+
+title = nil
 
 dbhost = "localhost"
 dbport = "3306"
@@ -192,6 +195,8 @@ opts.each do |opt, arg|
     $type = arg
   when "--locations"
     locations = true
+  when "--title"
+    title = arg
   when "--host"
     dbhost = arg
   when "--port"
@@ -259,7 +264,9 @@ else
   puts "Using #{$maxval} instead of #{image.max}"
   cgrad = EarthPainter::ColorGradient.new(image.min, $maxval)
 end
-
 image.draw(cgrad)
+if title
+  image.title(title)
+end
 image.write
 puts "done"
