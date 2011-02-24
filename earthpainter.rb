@@ -83,15 +83,26 @@ module EarthPainter
       }
     end
     
-    # draw a title a a specific location
+    # draw a title at a specific location
     # default is lower left
     def title(title, x=@width/30,y = @height*5/8)
       @gc.stroke('transparent')
-      @gc.fill('#eee')
+      @gc.fill('#aaa')
       @gc.font_style(Magick::NormalStyle)
       @gc.font_weight(Magick::BoldWeight)
       @gc.pointsize(x/2)
       @gc.text(x, y, title)
+    end
+    
+    # draw description at specific location
+    # default is lower left
+    def description(desc, x=@width/30,y = @height*5/8+@width/45)
+      @gc.stroke('transparent')
+      @gc.fill('#888')
+      @gc.font_style(Magick::NormalStyle)
+      @gc.font_weight(Magick::BoldWeight)
+      @gc.pointsize(x/3)
+      @gc.text(x, y, desc)
     end
     
   	# write out the image to disk finally

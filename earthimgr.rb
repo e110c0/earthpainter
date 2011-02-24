@@ -49,8 +49,8 @@ Usage:
 
 -t, --type:
     switch between different types of color quantization:
-    lin: linear scaling from 1 to maxvalue (default)
-    log: logarithmic scaling from 1 to maxvalue 
+      lin: linear scaling from 1 to maxvalue (default)
+      log: logarithmic scaling from 1 to maxvalue 
 
 -l, --locations:
     paint known locations below the actual data
@@ -59,7 +59,7 @@ Usage:
     paint a legend for the colorscale with a specific height (default: 160)
 
 -d, --description:
-    paint a description above the legend (default: "IP count")
+    paint a description above the legend
 
 -T, --title:
     paint a title above the legend
@@ -134,6 +134,7 @@ opts = GetoptLong.new(
   [ "--type", "-t", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--locations", "-l", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--title", "-T", GetoptLong::OPTIONAL_ARGUMENT ],
+  [ "--description", "-d", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--host", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--port", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--dbname", GetoptLong::OPTIONAL_ARGUMENT ],
@@ -157,6 +158,7 @@ itype = "generic"
 output = ""
 
 title = nil
+desc = nil
 
 dbhost = "localhost"
 dbport = "3306"
@@ -197,6 +199,8 @@ opts.each do |opt, arg|
     locations = true
   when "--title"
     title = arg
+  when "--description"
+    desc = arg
   when "--host"
     dbhost = arg
   when "--port"
@@ -264,9 +268,14 @@ else
   puts "Using #{$maxval} instead of #{image.max}"
   cgrad = EarthPainter::ColorGradient.new(image.min, $maxval)
 end
+
 image.draw(cgrad)
 if title
   image.title(title)
 end
+if desc
+  image.description(desc)
+end
+
 image.write
 puts "done"
