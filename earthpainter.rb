@@ -119,7 +119,8 @@ module EarthPainter
         }
       }
       # labels
-      l = 3 * stroke * colorgrad.colorcount / (2*x)
+      l = stroke * colorgrad.colorcount / x
+      puts l
       @gc.stroke('transparent')
       @gc.fill('#888')
       @gc.font_style(Magick::NormalStyle)
@@ -129,6 +130,9 @@ module EarthPainter
       @gc.text(x, lower + x/2, colorgrad.min.to_s)
 
       @gc.text_align(Magick::CenterAlign)
+      (1...l).each{ |i|
+        @gc.text(x + i*x, lower + x/2, "#{colorgrad.get_value(i*x/stroke).floor}")        
+      }
 
       # max
       @gc.text(x + stroke*colorgrad.colorcount, lower + x/2, ">#{colorgrad.max.floor}")
