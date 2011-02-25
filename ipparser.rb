@@ -1,3 +1,5 @@
+# Copyright 2011 Dirk Haage. All rights reserved.
+# This code is released under the BSD license, for details see the README file
 require 'rubygems'
 require 'ipmatcher'
 require 'geoparser'
