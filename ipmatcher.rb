@@ -184,10 +184,11 @@ module Ipmatcher
     end
     
     ### convenient functions to prepare the database for painting
-    # get a specific location by its id or all if id == nil
-    def get_location(id = nil)
-      if id == nil then
-        @db.query("SELECT lat,lon FROM locations")
+    # get a specific location by its id or a range if max is given
+    # must be done, because ruby-mysql breaks for more than 100k rows in a result
+    def get_location(id, max = nil)
+      if max != nil then
+        @db.query("SELECT lat,lon FROM locations WHERE location BETWEEN #{id} and #{max}")
       else
         @db.query("SELECT lat,lon FROM locations WHERE location = #{id};")
       end

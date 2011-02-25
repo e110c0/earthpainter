@@ -111,11 +111,14 @@ def paint_locations(image)
   puts "painting locations"
   c = 0
   before = Time.new
-  $matcher.get_location.each do |l|
-    image.coordinate(l[0].to_f,l[1].to_f,"#111")
-    c += 1
-    if c % 50000 == 0
-      puts "Painted #{c} locations."
+  # get the locations in small blocks (due to bug in mysql pkg)
+  (0..3500).each do |i|
+    $matcher.get_location(i*100,(i+1)*100-1).each do |l|
+      image.coordinate(l[0].to_f,l[1].to_f,"#111")
+      c += 1
+      if c % 50000 == 0
+        puts "Painted #{c} locations."
+      end
     end
   end
   after = Time.new
