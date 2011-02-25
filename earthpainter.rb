@@ -96,13 +96,42 @@ module EarthPainter
     
     # draw description at specific location
     # default is lower left
-    def description(desc, x=@width/30,y = @height*5/8+@width/45)
+    def description(desc, x=@width/30,y = @height*27/40)
       @gc.stroke('transparent')
       @gc.fill('#888')
       @gc.font_style(Magick::NormalStyle)
       @gc.font_weight(Magick::BoldWeight)
       @gc.pointsize(x/3)
       @gc.text(x, y, desc)
+    end
+    
+    # draw a color legend
+    def legend(colorgrad, height=@height/5, width=@width/30, x=@width/30, y=@height*29/40)
+      # colorgrad
+      stroke = height/colorgrad.colorcount
+      lower = y + stroke * (colorgrad.colorcount + 1)
+      @gc.stroke_width(1)
+      (1..colorgrad.colorcount).each{ |c|
+        puts "color #{c} - value #{colorgrad.get_value(c)}"
+        @gc.stroke(colorgrad.colors[c])
+        h = lower - c * stroke
+        (0...stroke).each{ |s|
+          @gc.line(x, h+s, x+width, h+s)          
+        }
+      }
+      # labels
+      l = 3 * stroke * colorgrad.colorcount / (2*x)
+      puts "#{l} labels"
+      @gc.stroke('transparent')
+      @gc.fill('#888')
+      @gc.font_style(Magick::NormalStyle)
+      @gc.font_weight(Magick::BoldWeight)
+      @gc.pointsize(x/3)
+      # min
+      @gc.text(x+ 1.2*width , lower + x/6, colorgrad.min.to_s)
+      # max
+      @gc.text(x+ 1.2*width , y + x/6, colorgrad.max.to_s)
+        
     end
     
   	# write out the image to disk finally
@@ -220,5 +249,12 @@ module EarthPainter
         end
       end
     end
+    
+    def get_value(colorid)
+      if type == "log"
+        value = Math::E**(colorid*@base) - 2 + @min
+      end
+    end
+  
   end
 end

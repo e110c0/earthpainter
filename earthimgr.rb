@@ -277,5 +277,7 @@ if desc
   image.description(desc)
 end
 
+image.legend(cgrad)
+
 image.write
 puts "done"
