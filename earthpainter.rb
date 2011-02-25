@@ -85,7 +85,7 @@ module EarthPainter
     
     # draw a title at a specific location
     # default is lower left
-    def title(title, x=@width/30,y = @height*5/8)
+    def title(title, x=@width/30,y = @height*7/9)
       @gc.stroke('transparent')
       @gc.fill('#aaa')
       @gc.font_style(Magick::NormalStyle)
@@ -96,7 +96,7 @@ module EarthPainter
     
     # draw description at specific location
     # default is lower left
-    def description(desc, x=@width/30,y = @height*27/40)
+    def description(desc, x=@width/30,y = @height*22/27)
       @gc.stroke('transparent')
       @gc.fill('#888')
       @gc.font_style(Magick::NormalStyle)
@@ -106,31 +106,32 @@ module EarthPainter
     end
     
     # draw a color legend
-    def legend(colorgrad, height=@height/5, width=@width/30, x=@width/30, y=@height*29/40)
+    def legend(colorgrad, height=@height/90, width=@width/5, x=@width/30, y=@height*23/27)
       # colorgrad
-      stroke = height/colorgrad.colorcount
-      lower = y + stroke * (colorgrad.colorcount + 1)
+      stroke = width/colorgrad.colorcount
+      lower = y + height
       @gc.stroke_width(1)
       (1..colorgrad.colorcount).each{ |c|
-        puts "color #{c} - value #{colorgrad.get_value(c)}"
         @gc.stroke(colorgrad.colors[c])
-        h = lower - c * stroke
+        h = x + (c-1) * stroke
         (0...stroke).each{ |s|
-          @gc.line(x, h+s, x+width, h+s)          
+          @gc.line(h+s, y, h+s, lower)          
         }
       }
       # labels
       l = 3 * stroke * colorgrad.colorcount / (2*x)
-      puts "#{l} labels"
       @gc.stroke('transparent')
       @gc.fill('#888')
       @gc.font_style(Magick::NormalStyle)
-      @gc.font_weight(Magick::BoldWeight)
+      @gc.font_weight(Magick::NormalWeight)
       @gc.pointsize(x/3)
       # min
-      @gc.text(x+ 1.2*width , lower + x/6, colorgrad.min.to_s)
+      @gc.text(x, lower + x/2, colorgrad.min.to_s)
+
+      @gc.text_align(Magick::CenterAlign)
+
       # max
-      @gc.text(x+ 1.2*width , y + x/6, colorgrad.max.to_s)
+      @gc.text(x + stroke*colorgrad.colorcount, lower + x/2, ">#{colorgrad.max.floor}")
         
     end
     
