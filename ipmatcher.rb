@@ -16,7 +16,7 @@ module Ipmatcher
     # download updates and update db
     def get_updates()
       # check for timestamp
-      last = @db.query("SELECT data from meta where info='updatetime';").fetch_row[0].to_i
+      last = get_updatetime
       puts "Last update was #{last}."
       date = (Time.now.strftime("%Y%m") + "01").to_i
       if date > last
@@ -57,6 +57,14 @@ module Ipmatcher
         Dir.delete("/tmp/GeoLiteCity_#{date}")
       else
         puts "Database up to date!"
+      end
+    end
+    
+    def get_updatetime
+      begin
+        @db.query("SELECT data from meta where info='updatetime';").fetch_row[0].to_i
+      rescue Exception => e
+        return 0
       end
     end
     
