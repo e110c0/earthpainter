@@ -11,6 +11,9 @@ module Ipmatcher
     
     def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
+      @blockselect = @db.prepare("SELECT lat,lon from blocks_copy as b,locations_copy as l 
+                      WHERE index_geo = ? AND ? >= start AND ? <= stop 
+                      AND b.location = l.location LIMIT 1;")
     end
     
     # download updates and update db
@@ -181,11 +184,10 @@ module Ipmatcher
       # some of the ip blocks are larger than 65k
       # the fix for this is in updating the database and duplicating the rows for each /16
       index = ip - (ip%65536)
-      res = @db.query("SELECT locations.lat,locations.lon from blocks,locations 
-                      WHERE index_geo = #{index} AND #{ip} BETWEEN blocks.start AND blocks.stop 
-                      AND blocks.location = locations.location LIMIT 1;")
+      res = @blockselect.execute(index,ip,ip)
       begin
-        return res.fetch_row
+        #return res.fetch
+        return [1,2]
       rescue Exception => e
         return nil
       end
