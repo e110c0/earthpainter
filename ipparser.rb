@@ -3,6 +3,7 @@
 require 'rubygems'
 require 'ipmatcher'
 require 'geoparser'
+require 'thread'
 
 # parser for ip data
 # data format is:
@@ -16,14 +17,80 @@ class IPParser < GeoParser::Base
   
   attr_accessor :matcher
   
-  def initiliaze(file = nil, ipmatcher = nil)
-    @matcher = ipmatcher if ipmatcher
+  def initialize(file, host, user, pass, db, threads = 8)
+    @file = file
+    @host = host
+    @user = user
+    @pass = pass
+    @db = db
+    @threads = threads
+    @reading = true
   end
+
+  def db_connect
   
-  def string_to_data(string)
+  # try to connect to the db
+    begin
+      return Ipmatcher::MaxMindMatcher.new(@host,@user,@pass,@db)
+    rescue Exception => e
+      puts "db access failed, but not required. continueing."
+    end
+  end 
+  def each
+    # reader queue
+    test = 1000 * @threads
+    inq = SizedQueue.new(test)    
+    mutex = Mutex.new
+	  # outgoing queue
+    outq = Queue.new
+    # producer
+    reader = Thread.new do
+      raise FileMissingError, "File not set" unless @file
+      begin
+        f = File.open(@file, "r")
+        puts "start reader loop now"
+        f.each do |l|
+          #puts l
+          inq << l
+        end
+      rescue => err
+        err
+      ensure
+        @reading = false
+        f.close
+      end
+    end
+    # worker
+    threads = []
+    @threads.times do |t|
+      threads[t] = Thread.new do
+        puts "Thread #{t} started."
+        # db connect
+        dbc = db_connect
+        while @reading or !inq.empty? do
+          outq << string_to_data(dbc, inq.pop) if !inq.empty?
+        end
+      end
+    end
+    while true
+      if  outq.empty?
+        n = true
+        threads.each do |t|
+          n = (t.status === false) and n
+        end
+        if n
+            puts "threads dead"
+          break # get a kitkat
+        end
+      end
+      yield outq.pop
+    end
+  end
+
+  def string_to_data(dbc, string)
     data = string.chomp.split(' ')
     if data.length >0
-      loc = @matcher.get_coordinates(data[0])
+      loc = dbc.get_coordinates(data[0])
       if loc
         if data.length == 1
           return {:lat => loc[0].to_f, :lon => loc[1].to_f, :val => 1}

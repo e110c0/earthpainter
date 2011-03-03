@@ -96,9 +96,7 @@ def select_parser(type)
   when "generic"
     GeoParser::GeoParser.new
   when "ip"
-    p = IPParser.new
-    p.matcher = $matcher
-    return p
+    p = IPParser.new($input, $dbhost, $dbuser, $dbpass, $db)
   when "reverseip"
     p = ReverseIPParser.new
     p.matcher = $matcher
@@ -156,18 +154,18 @@ colors = nil
 locations = false
 
 height = 900
-input = ""
+$input = ""
 itype = "generic"
 output = ""
 
 title = nil
 desc = nil
 
-dbhost = "localhost"
-dbport = "3306"
-db = "maxmind"
-dbuser = "ipmatcher"
-dbpass = ""
+$dbhost = "localhost"
+$dbport = "3306"
+$db = "maxmind"
+$dbuser = "ipmatcher"
+$dbpass = ""
 updatedb = false
 
 # Parse options
@@ -179,7 +177,7 @@ opts.each do |opt, arg|
     output = arg
   when "--input"
     if File.file?(arg)
-      input = arg
+      $input = arg
     else 
       usage
     end
@@ -205,15 +203,15 @@ opts.each do |opt, arg|
   when "--description"
     desc = arg
   when "--host"
-    dbhost = arg
+    $dbhost = arg
   when "--port"
-    dbport = arg
+    $dbport = arg
   when "--db"
-    db = arg
+    $db = arg
   when "--user"
-    dbuser = arg
+    $dbuser = arg
   when "--pass"
-    dbpass = arg
+    $dbpass = arg
   when "--updatedb"
     updatedb = true
   end
@@ -221,9 +219,9 @@ end
 
 # try to connect to the db
 begin
+  if updatedb
   $matcher = Ipmatcher::MaxMindMatcher.new(dbhost,dbuser,dbpass,db)
   # update database if requested
-  if updatedb
     $matcher.get_updates()
   end
 rescue Exception => e
@@ -242,7 +240,7 @@ if locations
 end
 # parse file and create picture
 parser = select_parser(itype)
-parser.file = input
+parser.file = $input
 puts "start analyzing #{parser.file}"
 c = 0
 errors = 0
