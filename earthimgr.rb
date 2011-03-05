@@ -227,6 +227,7 @@ begin
     $matcher.get_updates()
   end
 rescue Exception => e
+  puts e
   if itype == "ip" or locations 
     puts "db access failed, but required. exiting."
     Process.exit
