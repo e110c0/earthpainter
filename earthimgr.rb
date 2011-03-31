@@ -220,7 +220,7 @@ end
 # try to connect to the db
 begin
   if updatedb
-  $matcher = Ipmatcher::MaxMindMatcher.new(dbhost,dbuser,dbpass,db)
+  $matcher = Ipmatcher::MaxMindMatcher.new($dbhost,$dbuser,$dbpass,$db)
   # update database if requested
     $matcher.get_updates()
   end
