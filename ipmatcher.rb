@@ -20,7 +20,7 @@ module Ipmatcher
     # download updates and update db
     def get_updates()
       # check for timestamp
-      last = get_updatetime
+      last = get_metainfo("updatetime")
       puts "Last update was #{last}."
       date = (Time.now.strftime("%Y%m") + "01").to_i
       if date > last
@@ -54,7 +54,7 @@ module Ipmatcher
         # call update
         update(blocks, locations)
 
-        set_updatetime(date)
+        set_metainfo("updatetime", date)
         # delete /tmp/GeoLite dir
         File.delete(blocks)
         File.delete(locations)
@@ -76,31 +76,11 @@ module Ipmatcher
     end
     
     def set_metainfo(key, value)
-      puts value
       begin
         @db.query("UPDATE meta SET data=#{value} WHERE info='#{key}';")
       rescue Exception => e
         puts e
         @db.query("INSERT into meta(info,data) values ('#{key}', #{value});")
-      end
-    end
-
-    def get_updatetime
-      begin
-        @db.query("SELECT data from meta where info='updatetime';").fetch_row[0].to_i
-      rescue Exception => e
-        return 0
-      end
-    end
-    
-    def set_updatetime(date)
-      puts date
-      begin
-        @db.query("UPDATE meta SET data=#{date} WHERE info='updatetime';")
-      rescue Exception => e
-        puts e
-        @db.query("create table meta (info varchar(255), data int(10) UNSIGNED NOT NULL);")
-        @db.query("INSERT into meta (info,data) values ('updatetime', #{date});")
       end
     end
 
