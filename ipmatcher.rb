@@ -129,6 +129,7 @@ module Ipmatcher
             end
           end
         }
+        @db.query("insert into blocks (start, stop, location, index_geo) values " + sets.join(",") +";")
         puts "Finished. inserted " + c.to_s + " blocks."
         @db.query("CREATE INDEX idx_geo on blocks(index_geo);")
         puts "Created indexes."
@@ -164,6 +165,7 @@ module Ipmatcher
               c += 1
               if (c%100000) == 0
                 @db.query("insert into locations(location, lat, lon) values " + sets.join(",") +";")
+                sets = Array.[]
                 puts "inserted " + c.to_s + " locations."
               end
             rescue Exception => e
@@ -171,6 +173,7 @@ module Ipmatcher
             end
           end
         }
+        @db.query("insert into locations(location, lat, lon) values " + sets.join(",") +";")
         puts "Finished. inserted " + c.to_s + " locations."
         @db.query("CREATE INDEX idx_loc on locations(location);")
         puts "Created indexes."
