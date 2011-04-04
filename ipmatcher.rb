@@ -11,7 +11,8 @@ module Ipmatcher
     
     def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
-      @blockselect = @db.prepare("SELECT lat,lon from blocks_copy as b,locations_copy as l 
+      db2mem
+      @blockselect = @db.prepare("SELECT lat,lon from blocks_mem as b,locations_mem as l 
                       WHERE index_geo = ? AND ? >= start AND ? <= stop 
                       AND b.location = l.location LIMIT 1;")
     end
@@ -19,7 +20,7 @@ module Ipmatcher
     # download updates and update db
     def get_updates()
       # check for timestamp
-      last = get_updatetime
+      last = get_metainfo("updatetime")
       puts "Last update was #{last}."
       date = (Time.now.strftime("%Y%m") + "01").to_i
       if date > last
@@ -53,35 +54,36 @@ module Ipmatcher
         # call update
         update(blocks, locations)
 
-        set_updatetime(date)
+        set_metainfo("updatetime", date)
         # delete /tmp/GeoLite dir
         File.delete(blocks)
         File.delete(locations)
         Dir.delete("/tmp/GeoLiteCity_#{date}")
+        
+        # update in-memory tables
+        db2mem
       else
         puts "Database up to date!"
       end
     end
     
-    def get_updatetime
+    def get_metainfo(key)
       begin
-        @db.query("SELECT data from meta where info='updatetime';").fetch_row[0].to_i
+        @db.query("SELECT data from meta where info='#{key}';").fetch_row[0].to_i
       rescue Exception => e
         return 0
       end
     end
     
-    def set_updatetime(date)
-      puts date
+    def set_metainfo(key, value)
       begin
-        @db.query("UPDATE meta SET data=#{date} WHERE info='updatetime';")
+        @db.query("UPDATE meta SET data=#{value} WHERE info='#{key}';")
       rescue Exception => e
         puts e
-        @db.query("create table meta (info varchar(255), data int(10) UNSIGNED NOT NULL);")
-        @db.query("INSERT into meta (info,data) values ('updatetime', #{date});")
+        @db.query("INSERT into meta(info,data) values ('#{key}', #{value});")
       end
     end
-    
+
     def update(blocks = nil, locations = nil)
       c = 0
       if blocks != nil
@@ -93,12 +95,10 @@ module Ipmatcher
               stop int(10) UNSIGNED NOT NULL,
               location int(10) UNSIGNED NOT NULL,
               index_geo INT(10) UNSIGNED NOT NULL,
-              PRIMARY KEY (`id`),
-              INDEX idx_start (start),
-              INDEX idx_stop (stop),
-              INDEX idx_geo (index_geo)
+              PRIMARY KEY (`id`)
             );"
           )
+        blocks_insert = @db.prepare("insert into blocks (start, stop, location, index_geo) values (?,?,?,?);")
         File.open(blocks).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
@@ -115,11 +115,10 @@ module Ipmatcher
               # put into db
               (0..( (index_stop-index_start)/65536 )).each{ |i|
                 index = (index_start + i * 65536).to_s
-                @db.query("insert into blocks (start, stop, location, index_geo) values (" +
-                          start +  "," + stop + "," + loc + "," + index + ")")
+                blocks_insert.execute(start, stop, loc, index)
               }
               c += 1
-              if (c%10000) == 0
+              if (c%100000) == 0
                 puts "inserted " + c.to_s + " blocks."
               end              
             rescue Exception => e
@@ -127,6 +126,8 @@ module Ipmatcher
           end
         }
         puts "Finished. inserted " + c.to_s + " blocks."
+        @db.query("CREATE INDEX idx_geo on blocks(index_geo);")
+        puts "Created indexes."
         #@db.query("update blocks set index_geo = (stop - mod(stop, 65536));")
       elsif
         puts "No blocks file provided, not updating!"
@@ -140,10 +141,10 @@ module Ipmatcher
               location int,
               lat real,
               lon real,
-              PRIMARY KEY (location),
-              INDEX idx_loc (location)
+              PRIMARY KEY (location)
             );"
           )
+          locations_insert = @db.prepare("insert into locations values (?,?,?);")
         File.open(locations, "r:iso-8859-1").each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
@@ -155,9 +156,9 @@ module Ipmatcher
               location = data[0]
               lat = data[5]
               lon = data[6]
-              @db.query("insert into locations values (" + location + "," + lat + "," + lon + ")")
+              locations_insert.execute(location, lat, lon)
               c += 1
-              if (c%10000) == 0
+              if (c%100000) == 0
                 puts "inserted " + c.to_s + " locations."
               end              
             rescue Exception => e
@@ -165,9 +166,42 @@ module Ipmatcher
           end
         }
         puts "Finished. inserted " + c.to_s + " locations."
+        @db.query("CREATE INDEX idx_loc on locations(location);")
+        puts "Created indexes."
       elsif
         puts "No location file provided, not updating"
       end
+    end
+
+    # create in memory copies of the db
+    def db2mem
+      # check for in memory tables
+      # if not exist -> create
+      # if exist and outdated -> drop and create
+      tdate = get_metainfo("updatetime")
+      mdate = get_metainfo("memtime")
+      puts "mdate = #{mdate}, tdate = #{tdate}"
+      if mdate < tdate
+        #drop tables
+        @db.query("drop table if exists blocks_mem")
+        @db.query("drop table if exists locations_mem")
+        puts "In-memory tables outdated, dropping."
+      end
+      # create tables
+      begin
+        @db.query("CREATE TABLE blocks_mem like blocks;")
+        @db.query("ALTER TABLE blocks_mem engine=memory;")
+        @db.query("INSERT into blocks_mem SELECT * FROM blocks;")
+        @db.query("CREATE TABLE locations_mem like locations;")
+        @db.query("ALTER TABLE locations_mem engine=memory;")
+        @db.query("INSERT into locations_mem SELECT * FROM locations;")
+        set_metainfo("memtime", tdate)
+        puts "Updated in-memory tables."
+      rescue Exception => e
+        puts e
+        puts "In-memory tables uptodate, skipping."
+      end
+      
     end
 
     # return the geo coordinates for an IP in an array [lat, lon] or nil if no location is known
