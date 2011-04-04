@@ -98,30 +98,34 @@ module Ipmatcher
               PRIMARY KEY (`id`)
             );"
           )
-        blocks_insert = @db.prepare("insert into blocks (start, stop, location, index_geo) values (?,?,?,?);")
+        sets = Array.[]
         File.open(blocks).each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          if data.length == 3
+          if data.length == 3 and data[0] != "startIpNum"
             begin
               start = data[0]
               stop = data[1]
               loc = data[2]
               index_start = (start.to_i / 65536 * 65536)
               index_stop = (stop.to_i / 65536 * 65536)
-              # put into db
+              # put into string
               (0..( (index_stop-index_start)/65536 )).each{ |i|
                 index = (index_start + i * 65536).to_s
-                blocks_insert.execute(start, stop, loc, index)
+                sets.push("(#{start}, #{stop}, #{loc}, #{index})")
               }
               c += 1
+              # put into db
               if (c%100000) == 0
+                @db.query("insert into blocks (start, stop, location, index_geo) values " + sets.join(",") +";")
+                sets = Array.[]
                 puts "inserted " + c.to_s + " blocks."
-              end              
+              end
             rescue Exception => e
+              puts e
             end
           end
         }
@@ -144,24 +148,26 @@ module Ipmatcher
               PRIMARY KEY (location)
             );"
           )
-          locations_insert = @db.prepare("insert into locations values (?,?,?);")
+        sets = Array.[]
         File.open(locations, "r:iso-8859-1").each{ |line|
           # read maxmind file
           data = line.chomp.split(',')
           data.each{ |i|
             i.gsub!(/"/,'')
           }
-          if data.length >=7
+          if data.length >=7 and data[0] != "locId"
             begin
               location = data[0]
               lat = data[5]
               lon = data[6]
-              locations_insert.execute(location, lat, lon)
+              sets.push("(#{location}, #{lat}, #{lon})")
               c += 1
               if (c%100000) == 0
+                @db.query("insert into locations(location, lat, lon) values " + sets.join(",") +";")
                 puts "inserted " + c.to_s + " locations."
-              end              
+              end
             rescue Exception => e
+              puts e
             end
           end
         }
