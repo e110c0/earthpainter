@@ -32,6 +32,8 @@ Usage:
       maxmind: maxmind location file
       hip: hostip city file
       ip: space separated "IP(v4) [val]", missing values are set to 1
+      indb: similiar to ip, but processing done in database
+            (faster, use for data > 1M sets)
       reverseip: space separated "val IP(v4)"
       generic: space separated "lat lon val" (default)
     
@@ -98,6 +100,10 @@ def select_parser(type)
     GeoParser::GeoParser.new
   when "ip"
     p = IPParser.new
+    p.matcher = $matcher
+    return p
+  when "indb"
+    p = InDBParser.new
     p.matcher = $matcher
     return p
   when "reverseip"
@@ -231,7 +237,7 @@ begin
   end
 rescue Exception => e
   puts e
-  if itype == "ip" or locations or updatedb
+  if itype == "ip" or itype == "indb" or locations or updatedb
     puts "db access failed, but required. exiting."
     Process.exit
   else
