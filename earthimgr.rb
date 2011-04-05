@@ -54,6 +54,7 @@ Usage:
 
 -l, --locations:
     paint known locations below the actual data
+    (produces a dark shadow map in the background)
 
 -L, --legend:
     paint a legend for the colorscale with a specific height (default: 160)
@@ -112,6 +113,8 @@ def paint_locations(image)
   c = 0
   before = Time.new
   # get the locations in small blocks (due to bug in mysql pkg)
+  # WARNING: this will stop working as soon as there are more than 350k locations
+  # as of now (2011-04) there are about 305k
   (0..3500).each do |i|
     $matcher.get_location(i*100,(i+1)*100-1).each do |l|
       image.coordinate(l[0].to_f,l[1].to_f,"#111")
@@ -228,7 +231,7 @@ begin
   end
 rescue Exception => e
   puts e
-  if itype == "ip" or locations 
+  if itype == "ip" or locations or updatedb
     puts "db access failed, but required. exiting."
     Process.exit
   else
