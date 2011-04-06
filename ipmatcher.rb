@@ -9,6 +9,8 @@ require 'net/http'
 module Ipmatcher
   class MaxMindMatcher
     
+    attr_accessor :db
+    
     def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
       db2mem
@@ -247,7 +249,7 @@ module Ipmatcher
       end
     end
     
-    # get ip count for a specific location of for all if id == nil
+    # get ip count for a specific location or for all if id == nil
     def get_ips_per_location(id = nil)
       if id == nil then
         @db.query("SELECT blocks.location,locations.lat,locations.lon,SUM(DISTINCT(stop)-start+1)

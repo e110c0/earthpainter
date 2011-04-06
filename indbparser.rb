@@ -18,38 +18,47 @@ require 'time'
 
 class InDBParser < GeoParser::Base
   
-  attr_accessor :matcher
+  attr_accessor :matcher, :table
   
-  def initiliaze(file = nil, table = nil ipmatcher = nil)
+  def initiliaze(file = nil, table = nil, ipmatcher = nil)
     @matcher = ipmatcher if ipmatcher
-    if table
-      @table = table
-    else
-      @table = Time.now.to_i.to_s
-    end
-    store_in_db
+    @table = table if table
   end
   
   # store the data from file in db table
   def store_in_db
     raise FileMissingError, "File not set" unless @file
+    puts "Storing data in database..."
+    before = Time.now
     begin
-      #create the table, check if table exists!! if so, do something usefull
-      
+      # create the table, check if table exists!! if so, do something usefull
+      @matcher.db.query("drop table if exists input_#{@table}")
+      @matcher.db.query("create table input_#{@table} (
+                  ip int(10) UNSIGNED NOT NULL,
+                  net int(10) UNSIGNED NOT NULL,
+                  count real
+                  );")
+      @matcher.db.query("ALTER TABLE input_#{@table} engine=memory;")
       # store the data
       f = File.open(@file, "r")
       sets = Array.[]
       c = 0
       f.each do |l|
-        sets.push(string_to_string(l))
+        d = string_to_db(l)
+        if d
+          sets.push(d)
+        end
+        c += 1
         if (c%100000) == 0
-          @db.query("insert into #{@table}(ip, count) values " + sets.join(",") +";")
+          @matcher.db.query("insert into input_#{@table}(ip, net, count) values " + sets.join(",") +";")
           sets = Array.[]
-          puts "inserted " + c.to_s + " locations."
+          puts "inserted " + c.to_s + " data sets."
         end
       end
-    rescue => err
-      err
+      @matcher.db.query("insert into input_#{@table}(ip, net, count) values " + sets.join(",") +";")
+      puts "Finished. Inserted " + c.to_s + " data sets in #{Time.now - before} seconds."
+    rescue Exception => e
+      puts e
     ensure
       f.close
     end
@@ -57,7 +66,30 @@ class InDBParser < GeoParser::Base
   
   # match ips to locations and count hits
   def match_ips
+    puts "Matching IPs to locations."
+    before = Time.now
+    # create result table
+    @matcher.db.query("drop table if exists result_#{@table}")
+    @matcher.db.query("CREATE TABLE `result_#{@table}` (
+                        `x` double NOT NULL DEFAULT '0',
+                        `y` double NOT NULL DEFAULT '0',
+                        `count` int(11) unsigned NOT NULL DEFAULT '0',
+                        PRIMARY KEY (`x`,`y`)
+                        ) ENGINE=MEMORY;
+                      ")
     # use fancy sql stuff to match all ips to locations
+    @matcher.db.query("INSERT INTO result_#{@table}
+                       SELECT locations.lat, locations.lon, input.count
+                       FROM
+                          input_#{@table} AS input,
+                          blocks_mem AS blocks,
+                          locations_mem AS locations
+                       WHERE  input.net = blocks.index_geo
+                       AND input.ip >= blocks.start
+                       AND input.ip <= blocks.stop
+                       AND blocks.location = locations.location
+                       ON DUPLICATE KEY UPDATE result_#{@table}.count = result_#{@table}.count + input.count;")
+    puts "Finished. Match all IPs in #{Time.now - before} seconds."
   end
   
   # transform input string to db data string
@@ -65,17 +97,21 @@ class InDBParser < GeoParser::Base
     data = string.chomp.split(' ')
     if data.length >0
       begin
-        ip = IPAddr.new(data[0]).to_i.to_s        
+        ip = IPAddr.new(data[0]).to_i
+        net = ip / 65536 * 65536
       rescue Exception => e
-        puts "unknown IP type!"
         return nil
       end
       if data.length == 1
-        return "(#{ip},1)"
+        return "(#{ip},#{net},1)"
       else
-        return "(#{ip},#{data[1]})"
+        return "(#{ip},#{net},#{data[1]})"
       end
     end
+  end
+  
+  def db_to_data(a)
+    return {:lat => a[0].to_f, :lon => a[1].to_f, :val => a[2].to_i}
   end
   
   def string_to_data(string)
@@ -103,7 +139,14 @@ class InDBParser < GeoParser::Base
   
   # new each that returns the result from the db
   def each
+    # prepare data
+    store_in_db
+    match_ips
     # get full match table and yield each row
+    rows = @matcher.db.query("SELECT * from result_#{@table}")
+    rows.each do |l|
+      yield db_to_data l
+    end
   end
   
 end

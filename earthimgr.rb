@@ -9,6 +9,7 @@ require "geoparser"
 require "ipmatcher"
 require "earthpainter"
 require "ipparser"
+require "indbparser"
 
 # Usage output
 def usage
@@ -254,6 +255,9 @@ end
 parser = select_parser(itype)
 parser.file = input
 puts "start analyzing #{parser.file}"
+if itype == "indb"
+  parser.table = Time.now.to_i.to_s
+end
 c = 0
 errors = 0
 before = Time.new
