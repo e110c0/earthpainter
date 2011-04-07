@@ -286,7 +286,7 @@ end
 after = Time.new
 puts "Finished. #{c} entries in #{(after-before)} seconds (#{(c/(after-before)).to_i}/sec)"
 puts "min value: #{image.min} - max value: #{image.max}"
-puts "#{errors} occured (non-parsable lines or no coordinates)"
+puts "#{errors} errors occured (non-parsable lines or no coordinates)"
 # render image
 puts "start rendering #{image.name}"
 if $maxval < 1

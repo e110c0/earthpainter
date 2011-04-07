@@ -120,7 +120,6 @@ module EarthPainter
       }
       # labels
       l = stroke * colorgrad.colorcount / x
-      puts l
       @gc.stroke('transparent')
       @gc.fill('#888')
       @gc.font_style(Magick::NormalStyle)
@@ -131,7 +130,7 @@ module EarthPainter
 
       @gc.text_align(Magick::CenterAlign)
       (1...l).each{ |i|
-        @gc.text(x + i*x, lower + x/2, "#{colorgrad.get_value(i*x/stroke).floor}")        
+        @gc.text(x + i*x, lower + x/2, "#{colorgrad.get_rounded_value(i*x/stroke).floor}")        
       }
 
       # max
@@ -260,6 +259,13 @@ module EarthPainter
         value = Math::E**(colorid*@base) - 2 + @min
       end
     end
-  
+
+    # get a useful number instead of the exact value
+    def get_rounded_value(colorid)
+      value = get_value(colorid)
+      x = Math.log10(value).floor
+      value = (value/(10.0**x)).ceil*10**x
+      return value
+    end
   end
 end
