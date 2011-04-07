@@ -41,6 +41,9 @@ Usage:
 -H, --height:
     Height of resulting image. Width is always size*2 (default: 900)
 
+-b, --background:
+    Background color of the image (default: #000)
+
 -c, --colormap:
     Specify colormap present as YAML file (currently not implemented)
 
@@ -57,7 +60,8 @@ Usage:
 
 -l, --locations:
     paint known locations below the actual data
-    (produces a dark shadow map in the background)
+    with no option: produces a dark shadow map in the background
+    with a colorcode: produce a shadow map with the colorcode
 
 -L, --legend:
     paint a legend for the colorscale with a specific height (default: 160)
@@ -115,8 +119,8 @@ def select_parser(type)
 end
 
 # paint the locations in the light shadow
-def paint_locations(image)
-  puts "painting locations"
+def paint_locations(image,color)
+  puts "painting locations in color #{color}."
   c = 0
   before = Time.new
   # get the locations in small blocks (due to bug in mysql pkg)
@@ -124,7 +128,7 @@ def paint_locations(image)
   # as of now (2011-04) there are about 305k
   (0..3500).each do |i|
     $matcher.get_location(i*100,(i+1)*100-1).each do |l|
-      image.coordinate(l[0].to_f,l[1].to_f,"#111")
+      image.coordinate(l[0].to_f,l[1].to_f,color)
       c += 1
       if c % 50000 == 0
         puts "Painted #{c} locations."
@@ -142,6 +146,7 @@ opts = GetoptLong.new(
   [ "--input", "-i", GetoptLong::REQUIRED_ARGUMENT ],
   [ "--input-type", "-I", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--height", "-H", GetoptLong::OPTIONAL_ARGUMENT ],
+  [ "--background", "-b", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--colormap", "-c", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--maxvalue", "-m", GetoptLong::OPTIONAL_ARGUMENT ],
   [ "--type", "-t", GetoptLong::OPTIONAL_ARGUMENT ],
@@ -163,7 +168,8 @@ usage if ARGV.length < 2
 $maxval = -1.0
 $type = "log"
 colors = nil
-locations = false
+locations = "#111"
+background = "#000"
 
 height = 900
 input = ""
@@ -197,6 +203,8 @@ opts.each do |opt, arg|
     itype = arg
   when "--height"
     height = arg.to_i
+  when "--background"
+    background = arg
   when "--colormap"
     if File.file?(arg) && File.extname(arg) == ".yml"
       colors = YAML::load(File.open(arg))
@@ -209,7 +217,9 @@ opts.each do |opt, arg|
     # if arg in ["log", "lin"]
     $type = arg
   when "--locations"
-    locations = true
+    if arg != ""
+      locations = arg
+    end
   when "--title"
     title = arg
   when "--description"
@@ -247,9 +257,9 @@ rescue Exception => e
 end
 
 # Create image
-image = EarthPainter::EarthImage.new(height, "black", output)
+image = EarthPainter::EarthImage.new(height, background, output)
 if locations
-  paint_locations(image)
+  paint_locations(image, locations)
 end
 # parse file and create picture
 parser = select_parser(itype)
