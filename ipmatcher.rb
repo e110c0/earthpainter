@@ -191,7 +191,6 @@ module Ipmatcher
       # if exist and outdated -> drop and create
       tdate = get_metainfo("updatetime")
       mdate = get_metainfo("memtime")
-      puts "mdate = #{mdate}, tdate = #{tdate}"
       if mdate < tdate
         #drop tables
         @db.query("drop table if exists blocks_mem")
@@ -209,8 +208,6 @@ module Ipmatcher
         set_metainfo("memtime", tdate)
         puts "Updated in-memory tables."
       rescue Exception => e
-        puts e
-        puts "In-memory tables uptodate, skipping."
       end
       
     end

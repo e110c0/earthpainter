@@ -56,7 +56,8 @@ class InDBParser < GeoParser::Base
         end
       end
       @matcher.db.query("insert into input_#{@table}(ip, net, count) values " + sets.join(",") +";")
-      puts "Finished. Inserted " + c.to_s + " data sets in #{Time.now - before} seconds."
+      t = Time.now - before
+      puts "Finished. Inserted " + c.to_s + " data sets in #{t} seconds. (#{(c/t).to_i}/sec)"
     rescue Exception => e
       puts e
     ensure
@@ -90,6 +91,13 @@ class InDBParser < GeoParser::Base
                        AND blocks.location = locations.location
                        ON DUPLICATE KEY UPDATE result_#{@table}.count = result_#{@table}.count + input.count;")
     puts "Finished. Match all IPs in #{Time.now - before} seconds."
+  end
+  
+  # clean up db afterwards
+  def clean_up
+    puts "deleting temporary data."
+    @matcher.db.query("drop table if exists input_#{@table}")
+    @matcher.db.query("drop table if exists result_#{@table}")
   end
   
   # transform input string to db data string
@@ -147,6 +155,8 @@ class InDBParser < GeoParser::Base
     rows.each do |l|
       yield db_to_data l
     end
+    clean_up
+    
   end
   
 end
