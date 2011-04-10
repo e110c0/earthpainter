@@ -13,7 +13,16 @@ module Ipmatcher
     
     def initialize(host = "localhost", user = nil , pass = nil , db = "maxmind")
       @db = Mysql.real_connect(host, user, pass, db)
-      db2mem
+      # if the memupdate fails, the db seems to be in an inconsistent state
+      # forcing update!
+      begin
+        db2mem        
+      rescue Exception => e
+        puts "Database seems to be in an inconsistent state, forcing update!"
+        get_updates()
+        db2mem
+      end
+      
       @blockselect = @db.prepare("SELECT lat,lon from blocks_mem as b,locations_mem as l 
                       WHERE index_geo = ? AND ? >= start AND ? <= stop 
                       AND b.location = l.location LIMIT 1;")
@@ -79,9 +88,11 @@ module Ipmatcher
     
     def set_metainfo(key, value)
       begin
+        puts "setting meta info #{key}:#{value}"
         @db.query("UPDATE meta SET data=#{value} WHERE info='#{key}';")
       rescue Exception => e
         puts e
+        puts "inserting meta info #{key}:#{value}"
         @db.query("INSERT into meta(info,data) values ('#{key}', #{value});")
       end
     end
@@ -121,13 +132,13 @@ module Ipmatcher
               }
               c += 1
               # put into db
-              if (c%100000) == 0
+              if (c%20000) == 0
                 @db.query("insert into blocks (start, stop, location, index_geo) values " + sets.join(",") +";")
                 sets = Array.[]
                 puts "inserted " + c.to_s + " blocks."
               end
             rescue Exception => e
-              puts e
+              puts "error in filling blocks: #{e}"
             end
           end
         }
@@ -165,7 +176,7 @@ module Ipmatcher
               lon = data[6]
               sets.push("(#{location}, #{lat}, #{lon})")
               c += 1
-              if (c%100000) == 0
+              if (c%10000) == 0
                 @db.query("insert into locations(location, lat, lon) values " + sets.join(",") +";")
                 sets = Array.[]
                 puts "inserted " + c.to_s + " locations."
@@ -208,6 +219,8 @@ module Ipmatcher
         set_metainfo("memtime", tdate)
         puts "Updated in-memory tables."
       rescue Exception => e
+        puts e
+        raise e
       end
       
     end
