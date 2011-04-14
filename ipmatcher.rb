@@ -202,14 +202,14 @@ module Ipmatcher
       # if exist and outdated -> drop and create
       tdate = get_metainfo("updatetime")
       mdate = get_metainfo("memtime")
-      if mdate < tdate
-        #drop tables
+      if mdate == tdate
+        return
+      end
+      begin
+        # drop & create tables
         @db.query("drop table if exists blocks_mem")
         @db.query("drop table if exists locations_mem")
         puts "In-memory tables outdated, dropping."
-      end
-      # create tables
-      begin
         @db.query("CREATE TABLE blocks_mem like blocks;")
         @db.query("ALTER TABLE blocks_mem engine=memory;")
         @db.query("INSERT into blocks_mem SELECT * FROM blocks;")

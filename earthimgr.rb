@@ -276,7 +276,7 @@ parser.each do |d|
   if c % 10000 == 0
     puts "parsed #{c} entries."
   end
-	begin
+  	begin
 	  image.map(d[:lat],d[:lon],d[:val])
   rescue NoMethodError => e
     errors += 1
