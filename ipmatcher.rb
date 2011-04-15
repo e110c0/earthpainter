@@ -22,7 +22,6 @@ module Ipmatcher
         get_updates()
         db2mem
       end
-      
       @blockselect = @db.prepare("SELECT lat,lon from blocks_mem as b,locations_mem as l 
                       WHERE index_geo = ? AND ? >= start AND ? <= stop 
                       AND b.location = l.location LIMIT 1;")
@@ -70,14 +69,13 @@ module Ipmatcher
         File.delete(blocks)
         File.delete(locations)
         Dir.delete("/tmp/GeoLiteCity_#{date}")
-        
         # update in-memory tables
         db2mem
       else
         puts "Database up to date!"
       end
     end
-    
+
     def get_metainfo(key)
       begin
         @db.query("SELECT data from meta where info='#{key}';").fetch_row[0].to_i
