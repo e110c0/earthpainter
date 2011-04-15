@@ -46,6 +46,7 @@ exit
 end
 
 def get_networks(db,netsize)
+  puts "getting /#{netsize} networks."
   if netsize == 16
     nets = db.query("
       select index_geo
@@ -54,7 +55,13 @@ def get_networks(db,netsize)
       having count(index_geo) >= 1000
       ;
     ")
-  elsif
+  elsif netsize < 16
+    ipc = 2**(32-netsize)
+    nets = db.query("
+      select (index_geo - MOD(index_geo, #{ipc})) as slash8
+      from blocks_mem group by slash8;
+    ")
+  else
     puts "not implemented yet, go fix the code!"
   end
   return nets
@@ -70,7 +77,16 @@ def get_locationcounts(db, net, netsize)
       group by blocks.location
       ;
     ")
-  elsif
+  elsif netsize < 16
+    ipc = 2**(32-netsize)
+    locs = db.query("
+      select locations.lat, locations.lon, sum(blocks.stop - blocks.start +1)
+      from blocks_mem as blocks, locations_mem as locations
+      where (index_geo - MOD(index_geo, #{ipc})) = #{net} 
+      and locations.location = blocks.location
+      group by blocks.location;
+    ")
+  else
     puts "not implemented yet, go fix the code!"
   end
   return locs
