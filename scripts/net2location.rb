@@ -79,6 +79,8 @@ def get_locationcounts(db, net, netsize)
     ")
   elsif netsize < 16
     ipc = 2**(32-netsize)
+    # BUG: count is broken due to the db layout. networks < /16 are in the table multiple times
+    # FIX: unique the rows before counting!
     locs = db.query("
       select locations.lat, locations.lon, sum(blocks.stop - blocks.start +1)
       from blocks_mem as blocks, locations_mem as locations
@@ -157,7 +159,7 @@ nets = get_networks(con,net)
 
 nets.each do |n|
   # generate filename here and open file
-  filename = IPAddr.new(n[0].to_i, Socket::AF_INET).to_s
+  filename = IPAddr.new(n[0].to_i, Socket::AF_INET).to_s + "-#{net}"
   f = File.open(File.join(output,filename + '.csv'),'w+')
   puts "thats a network: #{filename}, saving it to #{File.join(output,filename)}.csv"
   loccounts = get_locationcounts(con, n[0], net)
